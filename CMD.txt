@@ -1,0 +1,3 @@
+d:
+cd D:\GitHub\auto-maple
+python main.py
