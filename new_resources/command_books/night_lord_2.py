@@ -384,7 +384,7 @@ class Skill_4(BaseSkill):
     key=Key.SKILL_4
     delay=0.7
     rep_interval=0.25
-    skill_cool_down=171
+    skill_cool_down=180
     ground_skill=True
     buff_time=90
     combo_delay = 0.4
