@@ -16,7 +16,8 @@ class Key:
 
     # Buffs
     
-    # Buffs Toggle
+    # Potions
+    Skill_8 = '8' #MP potion
 
     # Attack Skills
     SKILL_A = 'a' # 挑釁契約
@@ -387,6 +388,16 @@ class Skill_4(BaseSkill):
     skill_cool_down=180
     ground_skill=True
     buff_time=90
+    combo_delay = 0.4
+
+class Skill_8(BaseSkill):
+    _display_name ='MonsterPark'
+    key=Key.SKILL_4
+    delay=0.7
+    rep_interval=0.25
+    skill_cool_down=1800
+    ground_skill=True
+    buff_time=1800
     combo_delay = 0.4
 
 class Skill_5(BaseSkill):

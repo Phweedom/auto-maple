@@ -294,13 +294,14 @@ class Notifier:
         # use go home scroll
         # kb.press("f9")
 
-        while not kb.is_pressed(config.listener.config['Start/stop']):
-            time.sleep(0.1)
-            if config.enabled:
-                break
+        #while not kb.is_pressed(config.listener.config['Start/stop']):
+        #    time.sleep(0.1)
+        #    if config.enabled:
+        #        break
         self.mixer.stop()
-        time.sleep(1)
+        time.sleep(2)
         config.listener.enabled = True
+        config.enabled = True
 
     def _ping(self, name, volume=0.5):
         """A quick notification for non-dangerous events."""
