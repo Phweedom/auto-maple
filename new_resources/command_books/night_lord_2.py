@@ -238,7 +238,7 @@ class CheckDeathPenalty(Command):
     def main(self):
         frame = config.capture.frame
         # check in rune buff
-        dp_buff = utils.multi_match(frame[:65, :], death_penalty_TEMPLATE,threshold=0.8)
+        dp_buff = utils.multi_match(frame[:95, :], death_penalty_TEMPLATE,threshold=0.8)
         if len(dp_buff) > 0 :
             print("dp in buff")
             press('i')
@@ -268,7 +268,7 @@ class CheckAssassinMark(Command):
     def main(self):
         frame = config.capture.frame
         # check in rune buff
-        am_buff = utils.multi_match(frame[:65, :], ASSASSIN_MARK_TEMPLATE,threshold=0.9)
+        am_buff = utils.multi_match(frame[:95, :], ASSASSIN_MARK_TEMPLATE,threshold=0.9)
         if len(am_buff) > 0 :
             print("in buff")
         else:
