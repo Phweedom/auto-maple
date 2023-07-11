@@ -6,6 +6,15 @@ import cv2
 
 IMAGE_DIR = config.RESOURCES_DIR + '/command_books/night_lord/'
 
+frame = config.capture.frame
+#height, width, _ = frame.shape
+#item_frame = frame[height//2-100:height//2+200, width //2-150:width//2+150]
+death_penalty_TEMPLATE = cv2.imread(IMAGE_DIR + 'death_penalty.png', 0)
+safty_charm_TEMPLATE = cv2.imread(IMAGE_DIR + 'safety_charm.png', 0)
+
+
+ASSASSIN_MARK_TEMPLATE = cv2.imread(IMAGE_DIR + 'AssassinMark.png', 0)
+
 # List of key mappings
 class Key:
     # Movement
@@ -15,8 +24,10 @@ class Key:
     UP_JUMP = 'c'
 
     # Buffs
+    SKILL_AM = '\\' #Assassin Mark
     
     # Potions
+    SKILL_0 = 'i' #Safety Charm
     SKILL_8 = '8' #MP potion
 
     # Attack Skills
@@ -221,6 +232,49 @@ class FlashJump(Command):
         key_up(self.direction,up_time=0.01)
         time.sleep(utils.rand_float(0.02, 0.04))
 
+class CheckDeathPenalty(Command):
+    _display_name ='Check DeathPenalty'
+
+    def main(self):
+        frame = config.capture.frame
+        # check in rune buff
+        dp_buff = utils.multi_match(frame[:65, :], death_penalty_TEMPLATE,threshold=0.8)
+        if len(dp_buff) > 0 :
+            print("dp in buff")
+            press('i')
+            time.sleep(5)
+            safty_charm = utils.multi_match(frame[:, :], safty_charm_TEMPLATE, threshold=0.6)
+            if len(safty_charm) > 0 :
+                print("charm in")
+                safty_charm_pos = min(safty_charm, key=lambda p: p[0])
+                target = (
+                            round(safty_charm_pos[0]),
+                            round(safty_charm_pos[1])
+                        )
+                utils.game_window_click(target, button='left')
+                utils.game_window_click(target, button='left')
+            else:
+                print("charm out")
+            press('i')
+        else:
+            print("dp out buff")
+            
+                
+            
+
+class CheckAssassinMark(Command):
+    _display_name ='Check AssassinMark'
+
+    def main(self):
+        frame = config.capture.frame
+        # check in rune buff
+        am_buff = utils.multi_match(frame[:65, :], ASSASSIN_MARK_TEMPLATE,threshold=0.9)
+        if len(am_buff) > 0 :
+            print("in buff")
+        else:
+            print("out buff")
+            Skill_AM().execute()            
+
 class FaceLeft(BaseSkill):
     """Performs a flash jump in the given direction."""
     _display_name = 'FaceLeft'
@@ -303,6 +357,28 @@ class Rope(BaseSkill):
     ground_skill=False
     buff_time=0
     combo_delay = 0.2
+
+class Skill_AM(BaseSkill):
+    _display_name = 'Assassin Mark'
+    _distance = 27
+    key=Key.SKILL_AM
+    delay=0.5
+    rep_interval=0.5
+    skill_cool_down=0
+    ground_skill=False
+    buff_time=0
+    combo_delay = 0.5
+
+class Skill_0(BaseSkill):
+    _display_name = 'Safety Charm'
+    _distance = 27
+    key=Key.SKILL_0
+    delay=0.5
+    rep_interval=0.5
+    skill_cool_down=0
+    ground_skill=False
+    buff_time=0
+    combo_delay = 0.5
 
 class Skill_A(BaseSkill):
     _display_name = '挑釁契約'
