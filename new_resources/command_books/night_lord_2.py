@@ -9,8 +9,9 @@ IMAGE_DIR = config.RESOURCES_DIR + '/command_books/night_lord/'
 frame = config.capture.frame
 #height, width, _ = frame.shape
 #item_frame = frame[height//2-100:height//2+200, width //2-150:width//2+150]
-death_penalty_TEMPLATE = cv2.imread(IMAGE_DIR + 'death_penalty.png', 0)
-safty_charm_TEMPLATE = cv2.imread(IMAGE_DIR + 'safety_charm.png', 0)
+DEATH_DEBUFF_TEMPLATE = cv2.imread(IMAGE_DIR + 'dp_template.png', 0)
+CHARM_TEMPLATE = cv2.imread(IMAGE_DIR + 'charm_template.png', 0)
+CASH_TAB_TEMPLATE = cv2.imread(IMAGE_DIR + 'cashtab_template.png', 0)
 
 
 ASSASSIN_MARK_TEMPLATE = cv2.imread(IMAGE_DIR + 'AssassinMark.png', 0)
@@ -233,31 +234,53 @@ class FlashJump(Command):
         time.sleep(utils.rand_float(0.02, 0.04))
 
 class CheckDeathPenalty(Command):
-    _display_name ='Check DeathPenalty'
+    _display_name ='Check Death Penalty'
 
     def main(self):
         frame = config.capture.frame
-        # check in rune buff
-        dp_buff = utils.multi_match(frame[:95, :], death_penalty_TEMPLATE,threshold=0.8)
-        if len(dp_buff) > 0 :
-            print("dp in buff")
-            press('i')
-            time.sleep(5)
-            safty_charm = utils.multi_match(frame[:, :], safty_charm_TEMPLATE, threshold=0.6)
-            if len(safty_charm) > 0 :
-                print("charm in")
-                safty_charm_pos = min(safty_charm, key=lambda p: p[0])
-                target = (
-                            round(safty_charm_pos[0]),
-                            round(safty_charm_pos[1])
-                        )
-                utils.game_window_click(target, button='left')
-                utils.game_window_click(target, button='left')
+
+        # check for debuff
+        death_debuff = utils.multi_match(frame[:95, :], DEATH_DEBUFF_TEMPLATE,threshold=0.93)
+        
+        if len(death_debuff) > 0 :
+
+            #Open inventory
+            press("i")
+
+            #capture frame with invent opened
+            frame = config.capture.frame
+
+            #Check if cash tab is cuurently selected
+            cash_tab_icon = utils.multi_match(frame[:, :], CASH_TAB_TEMPLATE,threshold = 0.93)
+            if len(cash_tab_icon) > 0 :
+                cash_tab_pos = min(cash_tab_icon, key=lambda p: p[0])
+                target = (round(cash_tab_pos[0]), round(cash_tab_pos[1]))
+                utils.game_window_click(target, button='left', click_time = 1, delay = 0.01)
+
+            #ADJUST this if u get a noti saying you are in combat and you cant use item
+            time.sleep(0.2)
+
+            #Recapture a new frame with charm in the picture
+            frame = config.capture.frame
+
+            #Check for safety charm
+            charm_icon = utils.multi_match(frame[:, :], CHARM_TEMPLATE,threshold = 0.93)
+
+            #Use charm
+            if len(charm_icon) > 0 :
+                charm_pos = min(charm_icon, key=lambda p: p[0])
+                print('charm_pos : ', charm_pos)
+                target = (round(charm_pos[0]), round(charm_pos[1]))
+                utils.game_window_click(target, button='left', click_time = 2, delay = 0.01)
             else:
-                print("charm out")
-            press('i')
+                print("No charm in inventory!")
+
+            #Close inventory
+            press("i")
+
         else:
-            print("dp out buff")
+            #No death debuff effects
+            print("no debuff effect")
             
                 
             
