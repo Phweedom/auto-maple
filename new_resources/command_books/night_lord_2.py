@@ -28,7 +28,7 @@ class Key:
     SKILL_AM = '\\' #Assassin Mark
     
     # Potions
-    SKILL_0 = 'i' #Safety Charm
+    SKILL_0 = '0' #Elite Box
     SKILL_8 = '8' #MP potion
 
     # Attack Skills
@@ -393,12 +393,12 @@ class Skill_AM(BaseSkill):
     combo_delay = 0.5
 
 class Skill_0(BaseSkill):
-    _display_name = 'Safety Charm'
+    _display_name = 'Elite Box'
     _distance = 27
     key=Key.SKILL_0
     delay=0.5
     rep_interval=0.5
-    skill_cool_down=0
+    skill_cool_down= 60
     ground_skill=False
     buff_time=0
     combo_delay = 0.5
