@@ -299,9 +299,9 @@ class Notifier:
         #    if config.enabled:
         #        break
         self.mixer.stop()
-        time.sleep(2)
-        config.listener.enabled = True
+        time.sleep(4)
         config.enabled = True
+        config.listener.enabled = True
 
     def _ping(self, name, volume=0.5):
         """A quick notification for non-dangerous events."""

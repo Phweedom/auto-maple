@@ -29,6 +29,7 @@ class Key:
     
     # Potions
     SKILL_0 = '0' #Elite Box
+    SKILL_7 = '7' #WAP potion
     SKILL_8 = '8' #MP potion
 
     # Attack Skills
@@ -487,6 +488,16 @@ class Skill_4(BaseSkill):
     skill_cool_down=180
     ground_skill=True
     buff_time=90
+    combo_delay = 0.4
+
+class Skill_7(BaseSkill):
+    _display_name ='WAP Potion'
+    key=Key.SKILL_7
+    delay=0.7
+    rep_interval=0.25
+    skill_cool_down=7230
+    ground_skill=True
+    buff_time=7225
     combo_delay = 0.4
 
 class Skill_8(BaseSkill):
