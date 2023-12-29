@@ -26,6 +26,7 @@ class Key:
 
     # Buffs
     SKILL_AM = '\\' #Assassin Mark
+    SKILL_6 = '6' #Maple Warrior
     
     # Potions
     SKILL_0 = '0' #Elite Box
@@ -39,10 +40,11 @@ class Key:
     SKILL_S = 's'# 風魔手裏劍
     SKILL_W = 'w' # 穢土轉生
     SKILL_E = 'e' # 四星鏢雨
+    SKILL_R = 'r' # 6th job Origin skill 
     SKILL_4 = '4' # 飛閃起爆符
     SKILL_F = 'f' # 
     SKILL_F2 = 'f2' # 
-    SKILL_2 = '2' # 
+    SKILL_2 = '2' # Spider
     SKILL_3 = '3' # 
     SKILL_5 = 'down+5' # 噴泉 fountain
     # special Skills
@@ -459,6 +461,17 @@ class Skill_W(BaseSkill):
     buff_time=0
     combo_delay = 0.63
 
+class Skill_R(BaseSkill):
+    _display_name = '6th Job-Origin Skill'
+    _distance = 50
+    key=Key.SKILL_R
+    delay=0.63
+    rep_interval=0.5
+    skill_cool_down=360
+    ground_skill=False
+    buff_time=0
+    combo_delay = 0.63
+
 class Skill_E(BaseSkill):
     _display_name = '四星鏢雨'
     _distance = 50
@@ -496,7 +509,7 @@ class Skill_7(BaseSkill):
     delay=0.7
     rep_interval=0.25
     skill_cool_down=7230
-    ground_skill=True
+    ground_skill=False
     buff_time=7225
     combo_delay = 0.4
 
@@ -506,8 +519,18 @@ class Skill_8(BaseSkill):
     delay=0.7
     rep_interval=0.25
     skill_cool_down=1800
-    ground_skill=True
+    ground_skill=False
     buff_time=1799
+    combo_delay = 0.4
+
+class Skill_6(BaseSkill):
+    _display_name ='Maple Warrior'
+    key=Key.SKILL_6
+    delay=0.7
+    rep_interval=0.25
+    skill_cool_down=850
+    ground_skill=False
+    buff_time=900
     combo_delay = 0.4
 
 class Skill_5(BaseSkill):

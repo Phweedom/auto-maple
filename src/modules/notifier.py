@@ -12,6 +12,15 @@ import requests
 from src.common.vkeys import key_down, key_up, press, click
 from src.routine.components import Point
 from src.common.vkeys import release_unreleased_key
+import src.modules.telegram_bot as telebot
+
+# At the top
+GUILDIE_RANGES = (
+    # ((110, 58, 215), (130, 163, 295)),
+    ((110, 49, 181), (130, 112, 255)),
+)
+guildie_filtered = utils.filter_color(cv2.imread('assets/guildie.png'), GUILDIE_RANGES)
+GUILDIE_TEMPLATE = cv2.cvtColor(guildie_filtered, cv2.COLOR_BGR2GRAY)
 
 # A rune's symbol on the minimap
 RUNE_RANGES = (
@@ -78,9 +87,11 @@ class Notifier:
     def _main(self):
         self.ready = True
         prev_others = 0
+        g_prev_others = 0
         rune_start_time = time.time()
         detection_i = 0
         rune_check_count = 0
+        start_time = 0
 
         while True:
             if config.enabled:
@@ -94,6 +105,7 @@ class Notifier:
                     if np.count_nonzero(gray < 15) / height / width > self.room_change_threshold:
                         if settings.rent_frenzy == False:
                             self._send_msg_to_line_notify("畫面黑屏")
+                            telebot.send_warning_msg("Black Screen")
                             self._alert('siren')
 
                 # Check for elite warning
@@ -101,6 +113,7 @@ class Notifier:
                 elite = utils.multi_match(elite_frame, ELITE_TEMPLATE, threshold=0.9)
                 if len(elite) > 0:
                     self._send_msg_to_line_notify("黑王出沒")
+                    telebot.send_info_msg("elite warning")
                     if settings.rent_frenzy == False and not settings.auto_change_channel:
                         self._alert('siren')
                     elif settings.auto_change_channel:
@@ -116,8 +129,33 @@ class Notifier:
                         config.should_change_channel = True # if find other in 1 min between change channel, change again
                     if others != prev_others:
                         if others > prev_others:
+                            telebot.send_info_msg("Stranger in map")
+                            start_time = time.time()
                             self._ping('ding')
                         prev_others = others
+                    if config.stage_fright and time.time() - start_time > 60:
+                        start_time = time.time()
+                        telebot.send_warning_msg("Stranger stay longer than 1Min")
+
+                if settings.rent_frenzy == False and not settings.story_mode:
+                    # Check for guildie entering the map
+                    g_filtered = utils.filter_color(minimap, GUILDIE_RANGES)
+                    g_others = len(utils.multi_match(g_filtered, GUILDIE_TEMPLATE, threshold=0.5))
+                    config.stage_fright = g_others > 0
+                    if time.time() - config.latest_change_channel_or_map <= 60 and config.stage_fright:
+                        config.should_change_channel = True 
+                        print("guildie in new map, cc again")
+                    if g_others != g_prev_others:
+                        if g_others > g_prev_others:
+                            self._ping('ding')
+                            telebot.send_info_msg("Guildie in map")
+                            start_time = time.time()
+                            config.should_change_channel = True #CC anytime any guildie come into map
+                            print("guildie here")
+                        g_prev_others = g_others
+                    if config.stage_fright and time.time() - start_time > 60:
+                        start_time = time.time()
+                        telebot.send_warning_msg("Guildie Stay longer than 1Min")
 
                 # check for fiona_lie_detector
                 fiona_frame = frame[height-400:height, width - 300:width]
@@ -125,6 +163,7 @@ class Notifier:
                 if len(fiona_lie_detector) > 0:
                     print("find fiona_lie_detector")
                     self._send_msg_to_line_notify("菲歐娜測謊")
+                    telebot.send_info_msg("fiona_lie_detector")
                     # if settings.rent_frenzy == False:
                     self._alert('siren')
                     time.sleep(0.1)
@@ -146,6 +185,7 @@ class Notifier:
                                     self._ping('rune_appeared', volume=0.75)
                             else:
                                 self._send_msg_to_line_notify("輪之詛咒")
+                                telebot.send_warning_msg("rune curse")
                                 self._alert('siren')
 
                     # check for unexpected conversation
@@ -169,6 +209,7 @@ class Notifier:
                     if len(revive_confirm) > 0:
                         if settings.rent_frenzy == False:
                             self._send_msg_to_line_notify("角色死亡")
+                            telebot.send_warning_msg("Dead")
                         revive_confirm_pos = min(revive_confirm, key=lambda p: p[0])
                         target = (
                             round(revive_confirm_pos[0] +(width //2-150)),
@@ -232,6 +273,7 @@ class Notifier:
                             self._alert('siren')
                     elif config.bot.solve_rune_fail_count >= 3 and not settings.auto_change_channel:
                         self._send_msg_to_line_notify("多次解輪失敗")
+                        telebot.send_warning_msg("Fail to solve rune")
                         self._alert('siren')
                     else:
                         # check for rune is actually existing
