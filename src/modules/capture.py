@@ -10,17 +10,19 @@ import numpy as np
 from src.common import config, utils, settings
 from ctypes import wintypes
 from ctypes import windll, byref, c_ubyte
-from ctypes.wintypes import RECT, HWND
+from ctypes.wintypes import RECT, HWND, BOOL, HDC, UINT
 import win32gui
+import win32con
 user32 = ctypes.windll.user32
 user32.SetProcessDPIAware()
+
 
 
 # The distance between the top of the minimap and the top of the screen
 MINIMAP_TOP_BORDER = 5
 
 # The thickness of the other three borders of the minimap
-MINIMAP_BOTTOM_BORDER = 9
+MINIMAP_BOTTOM_BORDER = 6
 
 # Offset in pixels to adjust for windowed mode
 WINDOWED_OFFSET_TOP = 36
@@ -31,22 +33,33 @@ MM_TL_TEMPLATE = cv2.imread('assets/minimap_tl_template.png', 0)
 MM_BR_TEMPLATE = cv2.imread('assets/minimap_br_template.png', 0)
 
 MMT_HEIGHT = max(MM_TL_TEMPLATE.shape[0], MM_BR_TEMPLATE.shape[0])
+# print('\n Minimap height:', MMT_HEIGHT)
 MMT_WIDTH = max(MM_TL_TEMPLATE.shape[1], MM_BR_TEMPLATE.shape[1])
+# print('\n Minimap width:', MMT_WIDTH)
 
 # The player's symbol on the minimap
 PLAYER_TEMPLATE = cv2.imread('assets/player_template.png', 0)
 PT_HEIGHT, PT_WIDTH = PLAYER_TEMPLATE.shape
+print('\n Player height:', PT_HEIGHT)
+print('\n Player width:', PT_WIDTH)
 
 GetDC = windll.user32.GetDC
+ReleaseDC = windll.user32.ReleaseDC
 CreateCompatibleDC = windll.gdi32.CreateCompatibleDC
-GetClientRect = windll.user32.GetClientRect
 CreateCompatibleBitmap = windll.gdi32.CreateCompatibleBitmap
 SelectObject = windll.gdi32.SelectObject
 BitBlt = windll.gdi32.BitBlt
-SRCCOPY = 0x00CC0020
-GetBitmapBits = windll.gdi32.GetBitmapBits
 DeleteObject = windll.gdi32.DeleteObject
-ReleaseDC = windll.user32.ReleaseDC
+GetBitmapBits = windll.gdi32.GetBitmapBits
+GetClientRect = windll.user32.GetClientRect
+PrintWindow = windll.user32.PrintWindow
+ClientToScreen = windll.user32.ClientToScreen
+PrintWindow.restype = BOOL
+PrintWindow.argtypes = (HWND, HDC, UINT)
+
+PW_RENDERFULLCONTENT = 0x00000002
+CAPTUREBLT = 0x40000000
+SRCCOPY = 0x00CC0020
 
 class Capture:
     """
@@ -94,6 +107,33 @@ class Capture:
 
         print('\n[~] Started video capture')
         self.thread.start()
+    
+    def auto_detect_minimap_box(self, frame_gray: np.ndarray) -> tuple:
+        """
+        Automatically detects the minimap's top-left and bottom-right corners using template matching.
+        """
+        res_tl = cv2.matchTemplate(frame_gray, MM_TL_TEMPLATE, cv2.TM_CCOEFF_NORMED)
+        _, _, _, max_loc_tl = cv2.minMaxLoc(res_tl)
+        
+        res_br = cv2.matchTemplate(frame_gray, MM_BR_TEMPLATE, cv2.TM_CCOEFF_NORMED)
+        _, _, _, max_loc_br = cv2.minMaxLoc(res_br)
+
+        x1, y1 = max_loc_tl
+        x2, y2 = max_loc_br
+
+        padding_br = 8
+        padding_tl = 8
+
+        mm_tl = (
+            x1 + MM_TL_TEMPLATE.shape[1] - padding_tl,
+            y1 + MM_TL_TEMPLATE.shape[0]
+        )
+
+        mm_br = (
+            x2 + padding_br,
+            y2
+        )
+        return mm_tl, mm_br
 
     def _main(self):
         """Constantly monitors the player's position and in-game events."""
@@ -102,6 +142,18 @@ class Capture:
         while True:
             # Calibrate screen capture
             self.handle = user32.FindWindowW(None, "MapleStory")
+
+            win32gui.RedrawWindow(
+                self.handle,
+                None,
+                None,
+                win32con.RDW_INVALIDATE | win32con.RDW_UPDATENOW | win32con.RDW_ALLCHILDREN
+            )
+
+            # Force bring to foreground and restore from minimized
+            # if win32gui.IsIconic(self.handle):
+            #     win32gui.ShowWindow(self.handle, 9)  # SW_RESTORE
+            # win32gui.SetForegroundWindow(self.handle)
             
             # old version for front screenshot
             rect = wintypes.RECT()
@@ -118,7 +170,9 @@ class Capture:
                 self.window['left'] = rect[0]
                 self.window['top'] = rect[1]
                 self.window['width'] = max(rect[2] - rect[0], MMT_WIDTH)
+                # print('\n Minimap width:', self.window['width'])
                 self.window['height'] = max(rect[3] - rect[1], MMT_HEIGHT)
+                # print('\n Minimap height:', self.window['height'])
 
             # move game to foreground
             # win32gui.SetForegroundWindow(self.handle)
@@ -140,18 +194,22 @@ class Capture:
             self.frame = self.screenshot_in_bg(self.handle,0,0,self.window['width'],self.window['height'])
             if self.frame is None:
                 continue
-            tl, _ = utils.single_match(self.frame, MM_TL_TEMPLATE)
-            _, br = utils.single_match(self.frame, MM_BR_TEMPLATE)
-            mm_tl = (
-                tl[0] + MINIMAP_BOTTOM_BORDER,
-                tl[1] + MINIMAP_TOP_BORDER
-            )
-            mm_br = (
-                max(mm_tl[0] + PT_WIDTH, br[0] - MINIMAP_BOTTOM_BORDER),
-                max(mm_tl[1] + PT_HEIGHT, br[1] - MINIMAP_BOTTOM_BORDER)
-            )
+            # else:
+            #     cv2.imwrite("debug_initial_frame.png", self.frame)
+            # tl, _ = utils.single_match(self.frame, MM_TL_TEMPLATE)
+            # _, br = utils.single_match(self.frame, MM_BR_TEMPLATE)
+            # 
+            
+            gray_frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+            mm_tl, mm_br = self.auto_detect_minimap_box(gray_frame)
+            # DEBUG: sanity-check minimap crop
+            test_crop = self.frame[mm_tl[1]:mm_br[1], mm_tl[0]:mm_br[0]]
+            # cv2.imwrite("debug_minimap_region.png", test_crop)
             self.minimap_ratio = (mm_br[0] - mm_tl[0]) / (mm_br[1] - mm_tl[1])
             self.minimap_sample = self.frame[mm_tl[1]:mm_br[1], mm_tl[0]:mm_br[0]]
+            cv2.rectangle(self.frame, mm_tl, mm_br, (0,255,0), 1)
+            # cv2.imwrite("minimap_debug_boxed.png", self.frame)
+            # cv2.imwrite("minimap_debug.png", self.frame[mm_tl[1]:mm_br[1], mm_tl[0]:mm_br[0]])
             self.calibrated = True
             self.check_is_standing_count = 0
 
@@ -182,6 +240,12 @@ class Capture:
                 
                 # Determine the player's position
                 player = utils.multi_match(minimap, PLAYER_TEMPLATE, threshold=0.8)
+
+                # DEBUG: visualize all full-template matches
+                # debug_minimap = minimap.copy()
+                # for pt in player:
+                #     cv2.circle(debug_minimap, pt, 3, (0, 255, 0), -1)  # Green dot = full match
+                # print(f"[DEBUG] Matches found (full template): {len(player)}")
                 
                 # find left half or right half if didnt find complete player_template
                 find_left_half = False
@@ -193,18 +257,25 @@ class Capture:
                     player = utils.multi_match(minimap, left_half_player, threshold=0.8)
                     if player:
                         find_left_half = True
+                        # print(f"[DEBUG] Left-half match found at: {player[0]}")
+                        # cv2.circle(debug_minimap, player[0], 3, (255, 255, 0), -1)  # Yellow dot
                 if not player:
                     p_height, p_width = PLAYER_TEMPLATE.shape
                     right_half_player = PLAYER_TEMPLATE[0:p_height, p_width //2+1 : p_width]
                     player = utils.multi_match(minimap, right_half_player, threshold=0.8)
                     if player:
                         find_right_half = True
+                        # print(f"[DEBUG] Right-half match found at: {player[0]}")
+                        # cv2.circle(debug_minimap, player[0], 3, (0, 255, 255), -1)  # Cyan dot
                 if not player:
                     p_height, p_width = PLAYER_TEMPLATE.shape
                     right_half_player = PLAYER_TEMPLATE[p_height //2+1:p_height, 0 : p_width]
                     player = utils.multi_match(minimap, right_half_player, threshold=0.8)
                     if player:
                         find_bottom_half = True
+                        # print(f"[DEBUG] Bottom-half match found at: {player[0]}")
+                        # cv2.circle(debug_minimap, player[0], 3, (255, 0, 255), -1)  # Magenta dot
+                # cv2.imwrite("debug_minimap_player_match.png", debug_minimap)
                 if player:
                     # check is_standing
                     last_player_pos = config.player_pos
@@ -321,36 +392,40 @@ class Capture:
                 time.sleep(delay)
     
     def screenshot_in_bg(self,handle: HWND, tl_x = 0, tl_y = 0, width=0, height=0):
-        """窗口客户区截图
-
-        Args:
-            handle (HWND): 要截图的窗口句柄
-
-        Returns:
-            numpy.ndarray: 截图数据
-        """
         if settings.full_screen:
             return self.screenshot(tl_x,tl_y,width,height)
 
-        if width == 0 or height == 0:
-          # get target window size
-          r = RECT()
-          GetClientRect(handle, byref(r))
-          width, height = r.right, r.bottom
+        # 1. Get client size
+        r = RECT()
+        GetClientRect(handle, byref(r))
+        width = width or (r.right - r.left)
+        height = height or (r.bottom - r.top)
 
-        # 开始截图
-        dc = GetDC(handle)
-        cdc = CreateCompatibleDC(dc)
-        bitmap = CreateCompatibleBitmap(dc, width, height)
-        SelectObject(cdc, bitmap)
-        BitBlt(cdc, 0, 0, width, height, dc, tl_x, tl_y, SRCCOPY)
-        # 截图是BGRA排列，因此总元素个数需要乘以4
-        total_bytes = width*height*4
+        # 2. Get client top-left corner in screen coordinates
+        pt = wintypes.POINT(0, 0)
+        ClientToScreen(handle, byref(pt))
+        client_left = pt.x
+        client_top = pt.y
+
+        # 3. Create capture DC and bitmap
+        screen_dc = GetDC(0)  # desktop DC (not window DC)
+        mem_dc = CreateCompatibleDC(screen_dc)
+        bmp = CreateCompatibleBitmap(screen_dc, width, height)
+        SelectObject(mem_dc, bmp)
+
+        # 4. Try PrintWindow first
+        BitBlt(mem_dc, 0, 0, width, height, screen_dc,
+           client_left + tl_x, client_top + tl_y, SRCCOPY | CAPTUREBLT)
+
+         # 5. Extract pixels
+        total_bytes = width * height * 4
         buffer = bytearray(total_bytes)
-        byte_array = c_ubyte*total_bytes
-        GetBitmapBits(bitmap, total_bytes, byte_array.from_buffer(buffer))
-        DeleteObject(bitmap)
-        DeleteObject(cdc)
-        ReleaseDC(handle, dc)
-        # 返回截图数据为numpy.ndarray
+        byte_array = c_ubyte * total_bytes
+        GetBitmapBits(bmp, total_bytes, byte_array.from_buffer(buffer))
+
+        # 6. Cleanup
+        DeleteObject(bmp)
+        DeleteObject(mem_dc)
+        ReleaseDC(handle, screen_dc)
+
         return np.frombuffer(buffer, dtype=np.uint8).reshape(height, width, 4)

@@ -508,9 +508,9 @@ class Skill_7(BaseSkill):
     key=Key.SKILL_7
     delay=0.7
     rep_interval=0.25
-    skill_cool_down=7230
+    skill_cool_down=1815
     ground_skill=False
-    buff_time=7225
+    buff_time=1810
     combo_delay = 0.4
 
 class Skill_8(BaseSkill):
@@ -518,9 +518,9 @@ class Skill_8(BaseSkill):
     key=Key.SKILL_8
     delay=0.7
     rep_interval=0.25
-    skill_cool_down=1800
+    skill_cool_down=1815
     ground_skill=False
-    buff_time=1799
+    buff_time=1810
     combo_delay = 0.4
 
 class Skill_6(BaseSkill):
